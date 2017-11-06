@@ -74,3 +74,125 @@ file = pd.read_csv(max_node+"/system.csv")
 file['worker'] = worker
 file.to_csv(max_node+"/system.csv", index=False)
 
+spf = glob.glob("../sparksample_x/nectec-paperRes/"+max_node+"/*")
+for sp in spf:
+    if len(sp.split("/")[4])==3:
+        os.system("rm -rf "+max_node+"/spark/"+sp.split("/")[4]+".txt")
+        for ti in glob.glob("../sparksample_x/nectec-paperRes/"+max_node+"/"+sp.split("/")[4]+"/*"):
+            os.system("cat "+ti+" >> "+max_node+"/spark/raw/"+sp.split("/")[4]+".txt")
+
+def MB2KB(x):
+    res = 0
+    if x[-2:]=="MB":
+        res = float(x[:-2])*1000
+    if x[-2:]=="KB":
+        res = float(x[:-2])
+    return res
+
+def date_format(date):
+    return date.replace("/","-").replace(" ","_")
+
+def date_norm(date):
+    year = "20" + date.split("/")[0]
+    month = date.split("/")[1]
+    day = date.split("/")[2].split(" ")[0]
+    hour = date.split(":")[0].split(" ")[1]
+    minu = date.split(":")[1]
+    sec = date.split(":")[2]
+    return [int(year),int(month),int(day),int(hour),int(minu),int(sec)]
+
+for r in glob.glob(max_node+"/spark/raw/*.txt"):
+    file = open(r, "r") 
+    blockManagerInfo_list = []
+    memoryStore_list = []
+    status = "NONE"
+    index_start = 0
+    index_stop = 0
+    start_time = "start_time"
+    stop_time = "stop_time"
+    data_size = r.split("/")[3].split(".txt")[0]
+    print(data_size)
+    for line in file:
+        l = line.split(" ")
+        if len(l) > 3:
+            if l[3] == "MemoryStore:": #transformation
+                memoryStore_list.append(l)
+            if l[3] == "BlockManagerInfo:": #action
+                blockManagerInfo_list.append(l)
+        if "java.lang.OutOfMemoryError:" in line:
+            status = "-1"
+        if index_stop == 0:
+            stop_time = line
+        if index_start == 0:
+            start_time = line
+        index_start = index_start + 1
+
+    if status != "-1" and start_time != "start_time" and stop_time != "stop_time":
+        if len(start_time.split(" ")) != 2 or len(stop_times.split(" ")) != 2 :
+	        status = str(0)
+        else:
+            startTime = start_time.split(" ")[0] + " " + start_time.split(" ")[1]
+            stopTime = stop_time.split(" ")[0] + " " + stop_time.split(" ")[1]
+            startNorm = date_norm(startTime)
+            startDate = datetime(startNorm[0], startNorm[1], startNorm[2], startNorm[3], startNorm[4], startNorm[5])
+            startDate = mktime(startDate.timetuple())
+            stopNorm = date_norm(stopTime)
+            stopDate = datetime(stopNorm[0], stopNorm[1], stopNorm[2], stopNorm[3], stopNorm[4], stopNorm[5])
+            stopDate = mktime(stopDate.timetuple())
+            status = str(stopDate - startDate)
+
+    file_output = open(max_node+"/spark/csv/"+data_size+".csv","w")
+    file_output.write("time,status,mem_trans,mem_act,size\n")
+    for m in memoryStore_list:
+        time = m[0]+" "+m[1]
+        time = date_format(time)
+        if m[4]=="Block":
+            size = (m[13]+m[14])[:-1]
+            free = (m[16]+m[17])[:-2]
+            file_output.write(time+","+status+","+str(MB2KB(size))+",0,"+data_size+"\n")
+    for b in blockManagerInfo_list:
+        time = m[0]+" "+m[1]
+        time = date_format(time)
+        if b[4]=="Added": 
+            storage = b[7]
+            size = (b[11]+b[12])[:-1]
+            free = (b[14]+b[15])[:-2]
+            file_output.write(time+","+status+",0,"+str(MB2KB(size))+","+data_size+"\n")
+        if b[4]=="Removed":
+            storage = b[9]
+            if storage == "disk":
+                size = (b[11]+b[12])[:-2]
+                file_output.write(time+","+status+",0,"+str(MB2KB(size))+","+data_size+"\n")
+            if storage ==  "memory":
+                size = (b[11]+b[12])[:-1]
+                free = (b[14]+b[15])[:-2]
+                file_output.write(time+","+status+",0,"+str(MB2KB(size))+","+data_size+"\n")
+        if b[4]=="Updated":
+            storage = b[7]
+            size = (b[12]+b[13])[:-1]
+            free = (b[16]+b[17])[:-2]
+            file_output.write(time+","+status+",0,"+str(MB2KB(size))+","+data_size+"\n")
+
+import os
+import pandas as pd
+os.system("rm -rf "+max_node+"/spark.csv")
+index = 0
+for filenameZ in glob.glob(max_node+"/spark/csv/*.csv"):
+    if index == 0:
+        file = pd.read_csv(filenameZ)
+        file.to_csv(max_node+"/spark.csv", index=False)
+    else:
+        file_res = pd.read_csv(max_node+"/spark.csv")
+        file = pd.read_csv(filenameZ)
+        file_res = file_res.append(file)
+        file_res = file_res.sort_values(['time'])
+        file_res.to_csv(max_node+"/spark.csv", index=False)
+    index = index + 1
+
+spark_file = pd.read_csv(max_node+"/spark.csv")
+system_file = pd.read_csv(max_node+"/system.csv")
+
+file = spark_file.join(system_file.set_index('time'), on='time')
+file = file.dropna(subset=['cpu_user','cpu_system','bytes_in','bytes_out','worker'])
+
+file.to_csv(max_node+"/res.csv", index=False)
