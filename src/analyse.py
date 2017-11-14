@@ -1,6 +1,7 @@
 import glob
+import sys
 
-max_node = "9"
+max_node = str(sys.argv[1])
 
 def date_format(date):
     return date.replace("/","-").replace(" ","_")[2:]
