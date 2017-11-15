@@ -38,6 +38,6 @@ print(data.head())
 mydata = data[data['cpu_user']!="cpu_user"]
 
 import statsmodels.formula.api as sm
-model = sm.ols(formula='status~cpu_user+cpu_system,mem_trans,mem_act,size,bytes_in,bytes_out,worker', data=mydata)
+model = sm.ols(formula='status~cpu_user+cpu_system+mem_trans+mem_act+size+bytes_in+bytes_out+worker', data=mydata)
 fitted = model.fit()
 print(fitted.summary())
