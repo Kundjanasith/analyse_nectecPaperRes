@@ -12,6 +12,13 @@ bo = sys.argv[6]
 wo = sys.argv[7]
 ti = sys.argv[8]
 """
+
+"""
+ti = sys.argv[1]
+wo = sys.argv[2]
+cluster_name = sys.argv[3]
+"""
+
 cluster_name = "ssw3"
 
 def xxx(x): 
@@ -40,3 +47,67 @@ Rcu = mean_current("cpu_user")
 Rcs = mean_current("cpu_system")
 Rbi = mean_current("bytes_in")
 Rbo = mean_current("bytes_out")
+
+blockManagerInfo_list = []
+memoryStore_list = []
+file = open("../stream/spark.txt","r")
+for line in file:
+    l = line.split(" ")
+    if len(l) >= 3:
+       if l[3]=="MemoryStore:":
+          memoryStore_list.append(l)
+       if l[3]=="BlockManagerInfo:":
+          blockManagerInfo_list.append(l)
+
+def MB2KB(x):
+    res = 0
+    if x[-2:]=="MB":
+        res = float(x[:-2])*1000
+    if x[-2:]=="KB":
+        res = float(x[:-2])
+    return res
+
+b_list = []
+m_list = []
+for b in blockManagerInfo_list:
+    if b[4]=="Added": 
+        size = (b[11]+b[12])[:-1]
+        free = (b[14]+b[15])[:-2]
+        size = MB2KB(size)
+        b_list.append(size)
+    elif b[4]=="Removed":
+        storage = b[9]
+        if storage == "disk":
+            size = (b[11]+b[12])[:-2]
+            size = MB2KB(size)
+            b_list.append(size)
+        if storage ==  "memory":
+            size = (b[11]+b[12])[:-1]
+            free = (b[14]+b[15])[:-2]
+            size = MB2KB(size)
+            b_list.append(size)
+    elif b[4]=="Updated":
+        current = (b[12]+b[13])[:-1]
+        original = (b[16]+b[17])[:-2]
+        current = MB2KB(current)
+        b_list.append(current)
+    else:
+        print("ERROR")
+bL = np.mean(b_list)
+print(bL)
+
+
+for m in memoryStore_list:
+    if m[4]=="Block":
+        size = (m[13]+m[14])[:-1]
+        size = MB2KB(size)
+        free = (m[16]+m[17])[:-2]
+        m_list.append(size)
+    """
+    elif m[4]=="MemoryStore":
+        print("MemoryStore")
+    else:
+        print("ERROR")
+    """
+mL = np.mean(m_list)
+print(mL)
