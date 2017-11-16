@@ -2,6 +2,7 @@ import sys
 import glob
 import math
 import numpy as np
+import os
 """
 cu = sys.argv[1]
 cs = sys.argv[2]
@@ -13,13 +14,13 @@ wo = sys.argv[7]
 ti = sys.argv[8]
 """
 
-"""
+
 ti = sys.argv[1]
 wo = sys.argv[2]
 cluster_name = sys.argv[3]
-"""
 
-cluster_name = "ssw3"
+
+#cluster_name = "ssw3"
 
 def xxx(x): 
     n = x.split("e")[1][:-2]
@@ -42,6 +43,7 @@ def mean_current(cur):
                i_cu = xxx(i_cu)
                res_cu.append(i_cu)
     print(np.mean(res_cu)) 
+    return np.mean(res_cu)
           
 Rcu = mean_current("cpu_user")
 Rcs = mean_current("cpu_system")
@@ -111,3 +113,14 @@ for m in memoryStore_list:
     """
 mL = np.mean(m_list)
 print(mL)
+
+memT = mL
+memA = bL
+os.system("Rscript src/use_model1.R "+str(Rcu)+" "+str(Rcs)+" "+str(memT)+" "+str(memA)+" "+str(Rbi)+" "+str(Rbo)+" "+str(wo)+" "+str(ti))
+
+index = 0
+for l in open("src/predict.csv","r"):
+    #index = index + 1
+    #if index == 2: 
+    #   print(l)
+    print(i)
