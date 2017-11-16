@@ -1,5 +1,5 @@
 args = commandArgs(trailingOnly=TRUE)
-model = readRDS("src/model.data")
+model = readRDS("../predict/src/model.data")
 index = c()
 result = c()
 cu = as.numeric(args[1])
@@ -35,4 +35,4 @@ for (i in 1:wo){
 }
 df = data.frame(index,result)
 df = subset(df,result<ti)
-write.csv(df,file="src/predict.csv",row.names=FALSE)
+write.csv(df,file="../predict/src/predict.csv",row.names=FALSE)
